@@ -1,0 +1,9 @@
+torch
+torchvision
+numpy
+matplotlib
+scikit-learn
+joblib
+skl2onnx
+onnx
+dvc
