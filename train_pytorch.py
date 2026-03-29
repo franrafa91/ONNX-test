@@ -92,6 +92,7 @@ for epoch in range(epochs):
 # %% Evaluate model on the test set
 correct = 0
 total = 0
+model.eval()
 with torch.no_grad():
     for images, labels in test_loader:
         images = images.to(device)
