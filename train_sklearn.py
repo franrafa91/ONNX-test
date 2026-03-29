@@ -81,11 +81,11 @@ def main():
     print(classification_report(y_test, y_pred))
 
     # Save pipeline (includes scaler and classifier)
-    joblib.dump(pipeline, 'mnist_mlp_sklearn_pipeline.joblib')
+    joblib.dump(pipeline, 'model/mnist_mlp_sklearn_pipeline.joblib')
     print('Saved trained pipeline to mnist_mlp_sklearn_pipeline.joblib')
 
     # Export to ONNX if skl2onnx is available
-    onnx_path = 'mnist_mlp_sklearn.onnx'
+    onnx_path = 'model/mnist_mlp_sklearn.onnx'
     if SKL2ONNX_AVAILABLE:
         try:
             # The pipeline expects input of shape (N, 784)

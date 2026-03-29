@@ -110,7 +110,7 @@ print(f"Accuracy of the neural network on the {total} test images: {Accuracy:.3f
 # %% Export model to ONNX for interoperability
 # Create a single-sample dummy input with the same shape the model expects: (N, C, H, W).
 # The model flattens internally, so using (1,1,28,28) is fine.
-onnx_path = 'mnist_pytorch.onnx'
+onnx_path = 'models/mnist_pytorch.onnx'
 try:
     dummy_input = torch.randn(1, 1, 28, 28, device=device)
     torch.onnx.export(
