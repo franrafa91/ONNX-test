@@ -8,3 +8,5 @@ skl2onnx
 onnx
 dvc
 onnxscript
+onnxruntime
+flask
