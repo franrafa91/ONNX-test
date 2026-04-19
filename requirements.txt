@@ -10,3 +10,4 @@ dvc
 onnxscript
 onnxruntime
 flask
+gunicorn
