@@ -1,3 +1,3 @@
-from app import app
+from app_onnx import app as app_onnx
 
-application = app
+application = app_onnx
