@@ -58,19 +58,26 @@ def prediction(images: np.array):
     print(output)
     return [int(output[0][0]), list(output[1][0].values())]
 
-@app.route("/predict")
+@app.route("/predict", methods=["GET", "POST"])
 def predict():
     """Handle prediction requests for MNIST digit classification.
     
     This endpoint accepts a JSON-encoded array of 784 pixel values representing
-    a flattened 28x28 grayscale image through the query parameter 'image'.
-    It returns the predicted digit and probability scores for all 10 classes.
+    a flattened 28x28 grayscale image. Supports both GET (query parameter) and
+    POST (JSON body) methods. Returns the predicted digit and probability scores
+    for all 10 classes.
     
-    Query Parameters
+    Parameters (GET)
     ----------------
-    image : str
+    image : str (query parameter)
         JSON-formatted string containing an array of 784 float values in range [0, 1].
         Example: ?image=[0.0,0.1,0.2,...,0.9]
+    
+    Parameters (POST)
+    -----------------
+    image : list (JSON body)
+        Array of 784 float values in range [0, 1].
+        Example: {"image": [0.0, 0.1, 0.2, ..., 0.9]}
     
     Returns
     -------
@@ -92,20 +99,34 @@ def predict():
     --------
     GET /predict?image=[0.0,0.1,0.2,...,0.9]
     
+    POST /predict with JSON body:
+    {"image": [0.0, 0.1, 0.2, ..., 0.9]}
+    
     Response:
     {
         "response": [7, [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.65, 0.04, 0.03]]
     }
-    """
-    data_str = request.args.get("image")
     
-    if data_str is None:
-        return flask.jsonify({"error": "No data provided. Use ?image=[...]"}), 400
+    Notes
+    -----
+    For large data (784 floats), POST is recommended over GET to avoid URL length limits.
+    """
+    # Try to get data from POST body first, then fall back to GET query parameter
+    if request.method == "POST":
+        data = request.get_json()
+        if data is None or "image" not in data:
+            return flask.jsonify({"error": "No data provided. Send JSON with 'image' key"}), 400
+        data_list = data["image"]
+    else:  # GET
+        data_str = request.args.get("image")
+        if data_str is None:
+            return flask.jsonify({"error": "No data provided. Use ?image=[...]"}), 400
+        try:
+            data_list = json.loads(data_str)
+        except json.JSONDecodeError:
+            return flask.jsonify({"error": "Invalid JSON format. Use format: [0.1, 0.2, ...]"}), 400
     
     try:
-        # Parse JSON string to Python list
-        data_list = json.loads(data_str)
-        
         # Convert to numpy array with proper shape
         data_array = np.array(data_list, dtype=np.float32)
         
@@ -119,8 +140,6 @@ def predict():
         result = prediction(data_array)
         
         return flask.jsonify({"response": result})
-    except json.JSONDecodeError:
-        return flask.jsonify({"error": "Invalid JSON format. Use format: [0.1, 0.2, ...]"}), 400
     except Exception as e:
         return flask.jsonify({"error": str(e)}), 500
 
