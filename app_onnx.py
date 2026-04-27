@@ -3,38 +3,155 @@ import numpy as np
 from flask import Flask
 from flask import request
 import onnxruntime as ort
+import json
+
 
 app = Flask(__name__)
 
 Model = ort.InferenceSession('./models/mnist_mlp_sklearn.onnx')
 
-def to_numpy(tensor):
-    if tensor.requires_grad:
-        return tensor.detach().cpu().numpy()
-    else:
-        return tensor.cpu().numpy()
-
-def prediction(images:np.array):
+def prediction(images: np.array):
+    """Run inference on MNIST digit images using the ONNX model.
+    
+    This function takes a batch of flattened 28x28 grayscale images and returns
+    predictions for each image. The model outputs both a predicted digit and
+    probability scores for all 10 digit classes (0-9).
+    
+    Parameters
+    ----------
+    images : np.ndarray
+        Array of shape (n_samples, 784) where each row is a flattened 28x28 image.
+        Pixel values should be normalized (typically in range [0, 1]).
+        Example: For a single image, shape should be (1, 784).
+    
+    Returns
+    -------
+    list
+        A list containing:
+        - int: Predicted digit (0-9) for the first image in the batch
+        - list: Probability scores for all 10 digit classes (0-9) for the first image
+    
+    Raises
+    ------
+    ValueError
+        If any image does not have exactly 784 features (28x28 pixels).
+    
+    Examples
+    --------
+    >>> # Single image prediction
+    >>> image = np.random.rand(1, 784)  # Random 28x28 image
+    >>> predicted_digit, probabilities = prediction(image)
+    >>> print(f"Predicted: {predicted_digit}")
+    Predicted: 7
+    >>> print(f"Probabilities: {probabilities}")
+    Probabilities: [0.01, 0.02, ..., 0.85, ...]  # 10 values
+    
+    >>> # Multiple images (only first is returned)
+    >>> batch = np.random.rand(5, 784)  # 5 images
+    >>> predicted_digit, probabilities = prediction(batch)
+    """
     if len(images[0]) != 784:
         print(f"Length of image is {len(images[0])}")
         raise ValueError()
     onnx_input = {"input": images}
-    output = Model.run(None,onnx_input)
+    output = Model.run(None, onnx_input)
     print(output)
-    return [int(output[0][0]),list(output[1][0].values())]
+    return [int(output[0][0]), list(output[1][0].values())]
 
 @app.route("/predict")
 def predict():
-    input_image = request.args.get("image")
+    """Handle prediction requests for MNIST digit classification.
     
-    response = {}
-    response["response"] = prediction(input_image)
-    return flask.jsonify(response)
+    This endpoint accepts a JSON-encoded array of 784 pixel values representing
+    a flattened 28x28 grayscale image through the query parameter 'image'.
+    It returns the predicted digit and probability scores for all 10 classes.
+    
+    Query Parameters
+    ----------------
+    image : str
+        JSON-formatted string containing an array of 784 float values in range [0, 1].
+        Example: ?image=[0.0,0.1,0.2,...,0.9]
+    
+    Returns
+    -------
+    flask.Response
+        JSON response with the following structure:
+        {
+            "response": [
+                <int>: predicted_digit,  # Predicted digit (0-9)
+                <list>: probabilities    # List of 10 probability scores
+            ]
+        }
+    
+    Error Responses
+    ---------------
+    400: No data provided or invalid JSON format
+    500: Internal prediction error
+    
+    Examples
+    --------
+    GET /predict?image=[0.0,0.1,0.2,...,0.9]
+    
+    Response:
+    {
+        "response": [7, [0.01, 0.02, 0.03, 0.04, 0.05, 0.06, 0.07, 0.65, 0.04, 0.03]]
+    }
+    """
+    data_str = request.args.get("image")
+    
+    if data_str is None:
+        return flask.jsonify({"error": "No data provided. Use ?image=[...]"}), 400
+    
+    try:
+        # Parse JSON string to Python list
+        data_list = json.loads(data_str)
+        
+        # Convert to numpy array with proper shape
+        data_array = np.array(data_list, dtype=np.float32)
+        
+        # Reshape to (1, 784) if it's a single flat image
+        if data_array.shape == (784,):
+            data_array = data_array.reshape(1, 784)
+        elif len(data_array.shape) == 1:
+            data_array = data_array.reshape(1, -1)
+        
+        # Make prediction
+        result = prediction(data_array)
+        
+        return flask.jsonify({"response": result})
+    except json.JSONDecodeError:
+        return flask.jsonify({"error": "Invalid JSON format. Use format: [0.1, 0.2, ...]"}), 400
+    except Exception as e:
+        return flask.jsonify({"error": str(e)}), 500
+
 
 @app.route("/health")
 def health():
+    """Health check endpoint that tests the model with a sample image.
+    
+    This endpoint loads the first available test image from the test data directory
+    and runs a prediction to verify the model is functioning correctly.
+    
+    Returns
+    -------
+    flask.Response
+        JSON response with prediction result for the test image.
+        Same structure as /predict endpoint.
+    
+    Notes
+    -----
+    This endpoint is useful for:
+    - Verifying the model is loaded correctly
+    - Testing API connectivity
+    - Health checks in deployment environments
+    """
+    import os
+    test_dir = './.data/test_data/'
+    with open(f"{test_dir}/{os.listdir(test_dir)[0]}", 'r') as file:
+        data = json.load(file)
+    
     response = {}
-    response['response'] = prediction([np.load("./.data/test_array.npy")])
+    response['response'] = prediction([np.array(data)])
     return flask.jsonify(response)
 
 

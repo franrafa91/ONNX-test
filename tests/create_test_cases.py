@@ -39,4 +39,4 @@ for i in range(100):
     label = y_test[i]
     filename = f"./.data/test_data/{i:03d}_label_{label}.txt"
     with open(filename, "w") as f:
-        f.write(f"{X_test[i]}")
+        f.write(f"{X_test[i].tolist()}")
