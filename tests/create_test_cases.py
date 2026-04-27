@@ -32,4 +32,11 @@ test_set = torchvision.datasets.MNIST(root='.data', train=False, download=True, 
 print(f'Number of test samples: {len(test_set)}')
 X_test, y_test = dataset_to_numpy(test_set)
 
-np.save("./.data/test_array",X_test[0])
+# Save the first 100 test elements as separate text files with labels in filenames
+import os
+os.makedirs("./.data/test_data/", exist_ok=True)
+for i in range(100):
+    label = y_test[i]
+    filename = f"./.data/test_data/{i:03d}_label_{label}.txt"
+    with open(filename, "w") as f:
+        f.write(f"{X_test[i]}")
